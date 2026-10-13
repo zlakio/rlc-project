@@ -160,3 +160,4 @@ Scripts read parameters from `get_params.m`; change values there, not inside scr
 - [ ] Analytical eigenvalue sensitivity vs. simulated migration
 - [ ] SNR × tolerance heatmap
 - [ ] RC-ladder hardware validation (Arduino)
+
