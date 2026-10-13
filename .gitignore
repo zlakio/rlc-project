@@ -1,1 +1,9 @@
-README_STUDY_GUIDE
+
+results/
+
+
+*.asv
+*.m~
+
+
+README_STUDY_GUIDE.md
