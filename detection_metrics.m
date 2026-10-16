@@ -27,7 +27,7 @@ clear; clc; close all;
 cfg = get_params();
 rng(cfg.seed, 'twister');
 
-nTrain       = 200;    % healthy trials used to fit the baseline
+nTrain       = 1000;   % healthy trials used to fit the baseline (README: 200 was too few)
 nTestHealthy = 1000;   % fresh healthy trials -> false alarm rate
 nTestFault   = 100;    % fresh trials per severity -> detection rate
 rocSev       = [0.95 0.90 0.80 0.60];   % severities shown as ROC curves
@@ -152,28 +152,3 @@ save(fullfile(cfg.resultsDir, 'detection_metrics.mat'), ...
     'detRate', 'FAR', 'minIdx', 'aucAll', 'rocSev', 'fault_range', 'threshold', ...
     'nTrain', 'nTestHealthy', 'nTestFault', 'T', 'cfg');
 fprintf('\nDetection metrics complete. Saved to %s\n', fullfile(cfg.resultsDir, 'detection_metrics.mat'));
-
-%% ================= local function =================
-function Y = simulate_trials(cfg, sev, nTrials, useTol)
-% Fresh noisy step responses at one fault severity (rows = trials).
-% useTol = true also draws random R, L, C within tolerance for every trial.
-    N = cfg.N; t = cfg.t; u = cfg.u;
-    Y = zeros(nTrials, numel(t));
-    if ~useTol
-        C = cfg.C_nom;  C(cfg.fault_stage) = C(cfg.fault_stage) * sev;
-        [A, B, Cm, D] = build_rlc_ladder(cfg.R_nom, cfg.L_nom, C, cfg.RL, cfg.Rs);
-        yc = lsim(ss(A, B, Cm, D), u, t);
-    end
-    for i = 1:nTrials
-        if useTol
-            R = cfg.R_nom .* (1 + cfg.R_tol * (2*rand(1,N) - 1));
-            L = cfg.L_nom .* (1 + cfg.L_tol * (2*rand(1,N) - 1));
-            C = cfg.C_nom .* (1 + cfg.C_tol * (2*rand(1,N) - 1));
-            C(cfg.fault_stage) = C(cfg.fault_stage) * sev;
-            [A, B, Cm, D] = build_rlc_ladder(R, L, C, cfg.RL, cfg.Rs);
-            yc = lsim(ss(A, B, Cm, D), u, t);
-        end
-        noisePower = mean(yc.^2) / (10^(cfg.snr_db/10));
-        Y(i,:) = (yc + sqrt(noisePower) * randn(size(yc))).';
-    end
-end

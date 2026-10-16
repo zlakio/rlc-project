@@ -1,0 +1,13 @@
+Condition,Method,FAR_pct,MinDetectable_CapFraction,AUC_at_90pct_cap
+Aleatory only,Swept PCA: T2,0.2,0.871186440677966,0.99898
+Aleatory only,Healthy PCA: T2,0,NaN,0.52103
+Aleatory only,Healthy PCA: Q,0.3,0.742372881355932,0.76681
+Aleatory only,Healthy PCA: T2 OR Q,0.3,0.742372881355932,0.76681
+Aleatory only,Raw energy,0.8,0.891525423728813,0.99852
+Aleatory only,Deviation energy,0.3,0.742372881355932,0.7678
+Aleatory + Epistemic,Swept PCA: T2,1.3,NaN,0.49188
+Aleatory + Epistemic,Healthy PCA: T2,0.2,NaN,0.52415
+Aleatory + Epistemic,Healthy PCA: Q,1.1,NaN,0.62856
+Aleatory + Epistemic,Healthy PCA: T2 OR Q,1.2,NaN,0.6282
+Aleatory + Epistemic,Raw energy,0.6,NaN,0.51407
+Aleatory + Epistemic,Deviation energy,1.2,NaN,0.622880000000001

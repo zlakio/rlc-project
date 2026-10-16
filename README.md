@@ -66,13 +66,17 @@ This section records the thinking, including the things that were wrong at first
 
 **Why PCA, and why "anchor" it?** A step response is a 2001-sample vector, but the fault only moves it along a one-parameter curve. PCA finds that low-dimensional structure. PCA alone is purely statistical and has no idea about circuits, so we tie it to physics: if the PC1 score tracks the dominant eigenvalue's drift, the latent trajectory is interpretable as "the circuit's natural mode is moving".
 
-**Bug found: eigenvalue ordering.** `eig()` does not guarantee a consistent order, and complex-conjugate pairs can swap. In the first run the "dominant" eigenvalue jumped from `-562 + 1188i` to `-560 - 1287i` (a jump of 2457 between consecutive steps), so the correlation of 0.43 was meaningless. Fix: track each mode by matching it to its nearest neighbour from the previous severity step. The largest jump dropped to 7.6 and the correlation became **r = 0.99**. Caveat: two smoothly trending quantities correlate easily, so this is supporting evidence; analytical sensitivity (below) is the stronger test.
+**Bug found: eigenvalue ordering.** `eig()` does not guarantee a consistent order, and complex-conjugate pairs can swap. In the first run the "dominant" eigenvalue jumped from `-562 + 1188i` to `-560 - 1287i` (a jump of 2457 between consecutive steps), so the correlation of 0.43 was meaningless. Fix: track each mode by matching it to its nearest neighbour from the previous severity step. The largest jump dropped to 7.6 and the correlation became **r = 0.99**. Caveat: two smoothly trending quantities correlate easily, so this is supporting evidence. The analytical sensitivity check (Section 5, `eigen_sensitivity.m`) is the stronger test and agrees with the simulation.
 
 **The first detector was optimistic.** The initial approach fit the healthy baseline on 20 healthy trials, scored those same trials, and flagged a severity when the *mean* distance crossed the threshold. That reported detection at 94.6% capacitance. Problems: the baseline was evaluated on its own training data, and a mean cannot give a false alarm rate, detection rate, or ROC. The metrics script (README item 2.1) fixes this: fit on separate healthy training trials, score fresh trials, and alarm per trial.
 
-**Baseline size matters.** The first held-out evaluation fit the healthy baseline on only 200 trials and gave a false alarm rate of 2.9% and a minimum detectable fault of 89.2% capacitance. Refitting on 1000 trials dropped the false alarm rate to 0.3% and moved the minimum detectable fault to 87.1%. The earlier figure was flattered by a loose, noisy baseline. Detection numbers are only trustworthy once the baseline is large enough.
+**Baseline size matters.** The first held-out evaluation fit the healthy baseline on only 200 trials and gave a false alarm rate of 2.9% and a minimum detectable fault of 89.2% capacitance. Refitting on 1000 trials dropped the false alarm rate to 0.3% and moved the minimum detectable fault to 87.1%. The earlier figure was flattered by a loose, noisy baseline. Detection numbers are only trustworthy once the baseline is large enough. (`detection_metrics.m` now uses 1000 baseline trials as well, so its outputs match `detection_metrics_q.m`.)
 
 **Closed-form threshold.** For 2 PCs the Mahalanobis distance squared follows a chi-square distribution with 2 degrees of freedom, whose quantile is `-2·ln(1 − p)`. So the 99% threshold is `sqrt(-2·ln(0.01)) ≈ 3.03` with no toolbox needed.
+
+**PCA does not beat a plain energy threshold.** The baseline comparison (Section 5) shows that with noise only, a one-line raw-energy threshold detects as well as the swept-PCA T² detector, and slightly better at the smallest faults. PCA fit on healthy data only is blind with 2 components (its components are just noise directions). The value of the PCA trajectory is that it can be anchored to eigenvalue migration, not that it detects smaller faults than simple alternatives.
+
+**Tolerance, not noise, is the bottleneck.** Eigenvalue sensitivities show that a 10% capacitance loss moves the dominant mode by about the same amount as the spread caused by component tolerance alone (42 vs 44 rad/s). The SNR x tolerance map confirms it: once tolerance is present, a higher SNR stops helping beyond roughly 15-20 dB.
 
 **Reproducibility.** Every shared parameter lives in `get_params.m`, every script seeds the RNG (`rng(42)`), and results and 300-dpi figures are saved to `results/`. `test_build_rlc_ladder.m` checks the model against closed-form eigenvalues for N = 1.
 
@@ -112,6 +116,93 @@ Reading:
 - **Q helps under tolerance:** it has higher AUC than T² at every severity tested (e.g. 0.608 vs 0.494 at 95%), consistent with part of the fault signature lying outside the first two PCs. T² OR Q roughly doubles detection at mid severities (80%: 16% vs 8%) but is still far from the 95% target.
 - Detection rates use 100 trials per severity, so individual points carry roughly +/-5 percentage points of sampling noise.
 
+### Baseline comparison (`baseline_comparison.m`)
+
+Same protocol as above (seed 42, 15 dB, 99% confidence, 2 PCs): detectors fit on 1000 healthy training trials, thresholds for Q and the energy statistics from a separate 1000-trial healthy calibration set, every rate measured on fresh trials. Methods: **swept PCA T2** (the project's detector), **healthy-only PCA** (T2, Q, T2 OR Q; basis fit on healthy trials only), **raw energy** (`mean(y^2)`, two-sided), **deviation energy** (`mean((y - healthy mean response)^2)`).
+
+| Method | Noise only: FAR | Min. detectable fault | AUC at 90% cap. | Noise + tolerance: FAR | Min. detectable fault | AUC at 90% cap. |
+|---|---|---|---|---|---|---|
+| Swept PCA: T2 | 0.2% | 87.1% cap. (12.9% loss) | 0.999 | 1.3% | not reached | 0.492 |
+| Healthy PCA: T2 | 0.0% | not reached | 0.521 | 0.2% | not reached | 0.524 |
+| Healthy PCA: Q | 0.3% | 74.2% cap. (25.8% loss) | 0.767 | 1.1% | not reached | 0.629 |
+| Healthy PCA: T2 OR Q | 0.3% | 74.2% cap. (25.8% loss) | 0.767 | 1.2% | not reached | 0.628 |
+| Raw energy | 0.8% | 89.2% cap. (10.8% loss) | 0.999 | 0.6% | not reached | 0.514 |
+| Deviation energy | 0.3% | 74.2% cap. (25.8% loss) | 0.768 | 1.2% | not reached | 0.623 |
+
+Detection rate (%) at selected severities:
+
+| Capacitance remaining | Noise only: swept T2 | Raw energy | Healthy Q | Noise + tol.: swept T2 | Raw energy | Healthy Q | Deviation energy |
+|---|---|---|---|---|---|---|---|
+| 95% | 12 | 28 | 5 | 2 | 1 | 1 | 2 |
+| 90% | 86 | 92 | 10 | 4 | 6 | 7 | 11 |
+| 80% | 100 | 100 | 61 | 10 | 16 | 12 | 23 |
+| 70% | 100 | 100 | 100 | 31 | 38 | 38 | 47 |
+| 60% | 100 | 100 | 100 | 61 | 64 | 58 | 77 |
+
+Reading:
+- **Noise only:** a raw-energy threshold matches the swept-PCA T2 detector (AUC 0.999 for both, 89.2% vs 87.1% minimum detectable capacitance) and is better at the smallest faults (28% vs 12% detection at 95% capacitance). PCA adds no detection power here.
+- **Healthy-only PCA with 2 components never alarms** (0% at every severity, AUC 0.52): with noise-only healthy data the retained components are noise directions that do not contain the fault. Its Q statistic and deviation energy do detect, but only larger faults (25.8% loss). They behave almost identically, consistent with the healthy components removing almost nothing. Both respond to the square of the fault size, which is weak for small faults, whereas raw energy and the swept PC1 respond linearly (an interpretation, not separately tested).
+- **Noise plus tolerance:** no method reaches 95% detection. T2 (swept or healthy) and raw energy fall to chance at 90% capacitance. Residual-type statistics do best (Q and deviation energy, AUC about 0.62-0.63); deviation energy detects the most at 60% capacitance (77% vs 61% for swept T2). Raw energy, the best method without tolerance, becomes useless because tolerance changes total energy as much as the fault does.
+- Rates use 100 trials per severity (about +/-5 percentage points) and one seed. They differ by a few points from the Q-statistic table above because each script draws its own fresh trials.
+
+### Analytical eigenvalue sensitivity (`eigen_sensitivity.m`)
+
+Capacitor `C_k` enters `A` only through row `2k`, scaling the whole row by `1/C_k`. So for `C_k -> s*C_k`, `A(s) = A0 + (1/s - 1)*E_k` exactly (`E_k` = `A0` with all other rows zeroed), and each simple eigenvalue moves at `d(lambda_i)/ds = w_i' (dA/ds) v_i / (w_i' v_i)` with left/right eigenvectors `w_i`, `v_i`. The script checks the identity numerically, then predicts the migration two ways and compares both with the simulated eigenvalue tracks from `main_simulation.m`.
+
+| Capacitance | Simulated shift of dominant mode | Error, first-order (linearised once at healthy point) | Error, integrated (re-linearised along the path) |
+|---|---|---|---|
+| 95% | 18.3 rad/s | 1.1 rad/s | 0.0006 rad/s |
+| 90% | 42.2 rad/s | 5.2 rad/s (12%) | 0.001 rad/s |
+| 80% | 93.3 rad/s | 21.8 rad/s (23%) | 0.003 rad/s |
+| 60% | 264.5 rad/s | 119 rad/s (45%) | 0.011 rad/s |
+
+- The integrated sensitivity reproduces all ten simulated eigenvalue paths to within 0.011 rad/s over the whole sweep. The one-shot first-order prediction is only good for small faults.
+- Correlation of dominant-mode drift with mean PC1: **r = 0.9899** for the simulated eigenvalues and **r = 0.9899** for the analytic (integrated) prediction, so PC1 is explained equally well without any eigenvalue simulation. The first-order drift gives r = 0.9988 because it is exactly linear in capacitance; that mainly shows PC1 is nearly linear in capacitance.
+- **Which capacitor the dominant mode feels** (shift per 1% capacitance change, stages 1 to 5): 0.91, 2.92, **3.64**, 2.19, 0.33 rad/s. The simulated fault stage (3) is the most observable one; a fault in stage 5 would be about 10x harder to see.
+- **Fault vs tolerance** (shift at 90% capacitance vs 1-sigma spread caused by component tolerance alone, linearised / Monte Carlo):
+
+| Mode | Fault shift | Tolerance spread | Shift / spread | Share of spread from the faulted capacitor's own tolerance |
+|---|---|---|---|---|
+| -508 +/- 1850i (dominant) | 42.2 rad/s | 43.6 / 43.8 rad/s | 0.96 | 23% |
+| -563 +/- 1188i | 24.3 rad/s | 32.2 / 34.1 rad/s | 0.71 | 18% |
+| -135 (real) | 3.7 rad/s | 4.3 / 4.4 rad/s | 0.83 | 23% |
+| remaining modes | 1.5 to 2.6 rad/s | 26 to 59 rad/s | <= 0.07 | <= 1% |
+
+Even the best mode shifts by only about one tolerance standard deviation at 10% capacitance loss, which explains analytically why detection collapses under epistemic uncertainty. The tolerance of the faulted capacitor itself moves modes along the same direction as the fault, so that part cannot be separated from it.
+
+### SNR x tolerance map (`snr_tolerance_heatmap.m`)
+
+Every cell is a full experiment (swept-PCA basis, 500 healthy training trials, 500 fresh healthy and 100 fresh trials per severity on a 2% severity grid). Tolerance multiplier 1 is the R +/-5%, L +/-10%, C +/-10% bands above; 0 means noise only.
+
+Minimum detectable capacitance loss, T2 detector (n.r. = 95% detection not reached within 40% loss):
+
+| SNR | no tol. | 0.25x | 0.5x | 1x | 1.5x | 2x |
+|---|---|---|---|---|---|---|
+| 5 dB | n.r. | n.r. | n.r. | n.r. | n.r. | n.r. |
+| 10 dB | 32% | 34% | n.r. | n.r. | n.r. | n.r. |
+| 15 dB | 14% | 22% | 34% | n.r. | n.r. | n.r. |
+| 20 dB | 8% | 18% | 32% | n.r. | n.r. | n.r. |
+| 25 dB | 4% | 16% | 32% | n.r. | n.r. | n.r. |
+| 30 dB | 2% | 18% | 32% | n.r. | n.r. | n.r. |
+
+Detection rate (%) at 90% capacitance, T2 detector:
+
+| SNR | no tol. | 0.25x | 0.5x | 1x | 1.5x | 2x |
+|---|---|---|---|---|---|---|
+| 5 dB | 3 | 1 | 1 | 1 | 1 | 4 |
+| 10 dB | 14 | 11 | 6 | 2 | 4 | 2 |
+| 15 dB | 70 | 20 | 5 | 0 | 2 | 1 |
+| 20 dB | 100 | 26 | 6 | 3 | 1 | 3 |
+| 25 dB | 100 | 52 | 6 | 6 | 4 | 4 |
+| 30 dB | 100 | 44 | 10 | 4 | 2 | 4 |
+
+Reading:
+- **Noise only:** the minimum detectable fault falls steadily with SNR, from 32% loss at 10 dB to 2% at 30 dB; at 5 dB nothing is detectable.
+- **Tolerance sets a floor that more SNR cannot lower:** about 16-18% loss at 0.25x and about 32% at 0.5x, flat from 20 to 30 dB, roughly 6-7 times the capacitor tolerance (two data points on a 2% grid, so only a rough guide). At the project's assumed bands (1x), nothing reaches 95% even at 30 dB.
+- Once tolerance is present, raising SNR beyond about 15-20 dB buys almost nothing; reducing component uncertainty (measuring or calibrating parts) would help more.
+- Adding Q (T2 OR Q) changes little: it lowers the 10 dB noise-only minimum from 32% to 28% loss and makes 40% loss detectable at 10 dB and 0.5x, with false alarms of at most 3.4%. All false alarm rates in the map stay below 5%.
+- Resolution: 2% severity grid, 100 trials per severity, one seed. The (15 dB, no tolerance) cell reads 14% here versus 12.9% in the table above, most likely because of the coarser grid and the smaller sweep used to fit the PCA basis.
+
 ## 6. Repository structure
 
 ```
@@ -125,6 +216,9 @@ Reading:
 ├── epistemic_uncertainty_sweep.m   % tolerance Monte Carlo on top of AWGN
 ├── detection_metrics.m             % FAR, detection rate, ROC/AUC, minimum detectable fault
 ├── detection_metrics_q.m           % adds Q (SPE); reports T2, Q, T2 OR Q
+├── baseline_comparison.m           % swept PCA vs healthy-only PCA vs raw/deviation energy thresholds
+├── eigen_sensitivity.m             % analytical eigenvalue sensitivity vs simulated migration; tolerance spread
+├── snr_tolerance_heatmap.m         % minimum detectable fault over an SNR x tolerance grid
 ├── test_build_rlc_ladder.m         % model verification against closed form
 ├── run_all.m                       % runs everything in order
 └── results/                        % created automatically (.mat, .csv, figures/)
@@ -136,7 +230,7 @@ Reading:
 
 ```matlab
 cd path/to/this/folder
-run_all          % tests, then every script, in order
+run_all          % tests, then every script, in order (snr_tolerance_heatmap is the slow step)
 ```
 
 Scripts read parameters from `get_params.m`; change values there, not inside scripts. Runs are deterministic (seed 42).
@@ -145,10 +239,11 @@ Scripts read parameters from `get_params.m`; change values there, not inside scr
 
 - **Simulation only.** The RLC ladder has not been built; planned hardware validation uses an RC ladder (no inductors).
 - Detection under tolerance never reaches 95% within the tested range; more informative measurements (several nodes, not one output) have not been tried.
-- The PCA basis is fit on swept data that includes faulty trials; metrics describe the method as defined. A healthy-only PCA baseline is planned.
+- The PCA basis is fit on swept data that includes faulty trials; metrics describe the method as defined. A healthy-only PCA basis was tested (`baseline_comparison.m`) and is blind with 2 components; a healthy-only basis with more components was not tried.
+- A simple raw-energy threshold detects as well as the PCA T2 detector when only noise is present (see Section 5), so the PCA trajectory is justified by its physical interpretation, not by detection power.
 - A single fault type (capacitance loss in one stage) and a single measured output.
-- Noise level (15 dB) and tolerance bands are assumed values; sensitivity sweeps are planned.
-- The eigenvalue correlation is supporting evidence; the analytical perturbation check is still to do.
+- Noise level (15 dB) and tolerance bands are assumed values. The SNR x tolerance map sweeps both, but tolerance is modelled as independent uniform draws within each band; other distributions were not tried.
+- The analytical eigenvalue check is done, but the Monte Carlo tolerance spread uses greedy nearest-neighbour mode matching, which is order-dependent for the -590 +/- 622i pair (Monte Carlo 40.0 rad/s vs linearised 26.2 rad/s). The linearised value is the reliable one there; those modes barely respond to the fault, so no conclusion depends on it.
 - We do not address data heterogeneity, cascading-failure metrics, or the 2ⁿ state-explosion problem.
 
 ## 9. Roadmap
@@ -156,8 +251,8 @@ Scripts read parameters from `get_params.m`; change values there, not inside scr
 - [x] Reproducibility, saved results, model test
 - [x] Detection metrics: FAR, detection rate, ROC/AUC, minimum detectable fault
 - [x] Q statistic alongside T²: reported for T² alone, Q alone, and T² OR Q
-- [ ] Baseline comparison (plain PCA + T², raw-energy threshold)
-- [ ] Analytical eigenvalue sensitivity vs. simulated migration
-- [ ] SNR × tolerance heatmap
+- [x] Baseline comparison (plain PCA + T², raw-energy threshold)
+- [x] Analytical eigenvalue sensitivity vs. simulated migration
+- [x] SNR × tolerance heatmap
 - [ ] RC-ladder hardware validation (Arduino)
 
