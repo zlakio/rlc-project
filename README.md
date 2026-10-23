@@ -203,6 +203,40 @@ Reading:
 - Adding Q (T2 OR Q) changes little: it lowers the 10 dB noise-only minimum from 32% to 28% loss and makes 40% loss detectable at 10 dB and 0.5x, with false alarms of at most 3.4%. All false alarm rates in the map stay below 5%.
 - Resolution: 2% severity grid, 100 trials per severity, one seed. The (15 dB, no tolerance) cell reads 14% here versus 12.9% in the table above, most likely because of the coarser grid and the smaller sweep used to fit the PCA basis.
 
+### Multi-point sensing (`multipoint_sensing.m`)
+
+Everything above measures one signal, the voltage across the last capacitor. Here the same swept-PCA T2 detector is given more signals from the same simulated circuit. Each channel has its own noise at 15 dB and is scaled by its nominal healthy RMS before PCA. Protocol as in the baseline comparison (separate healthy training set, fresh test trials: 1000 healthy, 100 per severity). Two capacities are shown: 2 PCs (the project's choice) and 10 PCs.
+
+Sensor sets: **S1** last capacitor V5 (what we had), **S2** V3 only (the faulted stage), **S3** V1+V3+V5, **S4** all five capacitor voltages, **S5** all five capacitor voltages + all five inductor currents.
+
+Minimum detectable capacitance loss (>=95% detection, FAR <= 5%), 2 PCs / 10 PCs:
+
+| Sensors | Noise only | Noise + tolerance |
+|---|---|---|
+| S1 V5 (baseline) | 11.5% / 14.2% | not reached |
+| S2 V3 | 12.2% / 14.2% | not reached |
+| S3 V1,V3,V5 | 8.8% / 10.8% | not reached |
+| S4 all 5 caps | 6.8% / 8.8% | not reached |
+| S5 caps + currents | 4.7% / 5.4% | **31.9% / 29.8%** |
+
+Detection rate (%) under noise + tolerance, 2 PCs:
+
+| Sensors | 70% cap (30% loss) | 60% cap (40% loss) | AUC at 90% cap |
+|---|---|---|---|
+| S1 | 21 | 54 | 0.491 |
+| S2 | 48 | 84 | 0.609 |
+| S3 | 38 | 73 | 0.573 |
+| S4 | 36 | 72 | 0.561 |
+| S5 | 92 | 100 | 0.650 |
+
+Reading:
+- **Noise only:** more sensors steadily lower the minimum detectable fault, from 11.5% to 4.7% loss, although each added channel brings its own noise.
+- **With tolerance:** capacitor voltages alone do not help; S1-S4 still never reach 95%. Only S5, which adds the inductor currents, does, at about 30-32% loss. This is the first configuration in the project that clears the bar under the assumed tolerances.
+- The improvement is for large faults only: at 90% capacitance S5 detects just 6% of faults and its AUC is 0.65, so a 10% fault is still not reliably separable from tolerance.
+- Adding capacitor channels without currents (S2 vs S3 vs S4) slightly hurts at large faults. With 2 PCs the retained directions are dominated by tolerance spread, not the fault, which motivates nuisance-aware features.
+- 10 PCs is worse than 2 PCs for the capacitor-only sets under tolerance, for the same reason.
+- All false alarm rates are at most 1.8%. Resolution: one seed, 100 trials per severity.
+
 ## 6. Repository structure
 
 ```
@@ -219,6 +253,7 @@ Reading:
 ├── baseline_comparison.m           % swept PCA vs healthy-only PCA vs raw/deviation energy thresholds
 ├── eigen_sensitivity.m             % analytical eigenvalue sensitivity vs simulated migration; tolerance spread
 ├── snr_tolerance_heatmap.m         % minimum detectable fault over an SNR x tolerance grid
+├── multipoint_sensing.m            % detection with 1 to 10 measured signals (caps, inductor currents)
 ├── test_build_rlc_ladder.m         % model verification against closed form
 ├── run_all.m                       % runs everything in order
 └── results/                        % created automatically (.mat, .csv, figures/)
@@ -238,10 +273,10 @@ Scripts read parameters from `get_params.m`; change values there, not inside scr
 ## 8. Limitations and scope
 
 - **Simulation only.** The RLC ladder has not been built; planned hardware validation uses an RC ladder (no inductors).
-- Detection under tolerance never reaches 95% within the tested range; more informative measurements (several nodes, not one output) have not been tried.
+- With the single output, detection under tolerance never reaches 95% within the tested range. Measuring all ten states (`multipoint_sensing.m`) reaches it only at about 30-32% loss; smaller faults remain undetectable under tolerance.
 - The PCA basis is fit on swept data that includes faulty trials; metrics describe the method as defined. A healthy-only PCA basis was tested (`baseline_comparison.m`) and is blind with 2 components; a healthy-only basis with more components was not tried.
 - A simple raw-energy threshold detects as well as the PCA T2 detector when only noise is present (see Section 5), so the PCA trajectory is justified by its physical interpretation, not by detection power.
-- A single fault type (capacitance loss in one stage) and a single measured output.
+- A single fault type (capacitance loss in one stage); the main results use a single measured output, and the multi-point study assumes up to ten independently noisy sensors.
 - Noise level (15 dB) and tolerance bands are assumed values. The SNR x tolerance map sweeps both, but tolerance is modelled as independent uniform draws within each band; other distributions were not tried.
 - The analytical eigenvalue check is done, but the Monte Carlo tolerance spread uses greedy nearest-neighbour mode matching, which is order-dependent for the -590 +/- 622i pair (Monte Carlo 40.0 rad/s vs linearised 26.2 rad/s). The linearised value is the reliable one there; those modes barely respond to the fault, so no conclusion depends on it.
 - We do not address data heterogeneity, cascading-failure metrics, or the 2ⁿ state-explosion problem.
@@ -254,5 +289,9 @@ Scripts read parameters from `get_params.m`; change values there, not inside scr
 - [x] Baseline comparison (plain PCA + T², raw-energy threshold)
 - [x] Analytical eigenvalue sensitivity vs. simulated migration
 - [x] SNR × tolerance heatmap
+- [x] Multi-point sensing (several capacitor voltages, inductor currents)
+- [ ] Self-baseline (per-unit reference) detection with sequential CUSUM/EWMA
+- [ ] Kalman-filter joint state and capacitance estimation
+- [ ] Nuisance-aware / supervised features
 - [ ] RC-ladder hardware validation (Arduino)
 

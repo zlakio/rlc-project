@@ -8,4 +8,5 @@ detection_metrics           % 4. FAR, detection rate, ROC/AUC, minimum detectabl
 detection_metrics_q         % 5. adds the Q statistic (T2, Q, T2 OR Q)
 baseline_comparison         % 6. PCA vs. healthy-only PCA vs. energy thresholds
 eigen_sensitivity           % 7. analytical eigenvalue sensitivity vs. simulation
-snr_tolerance_heatmap       % 8. SNR x tolerance map (slow: roughly 10-20 min)
+multipoint_sensing          % 8. detection with 1-10 measured signals
+snr_tolerance_heatmap       % 9. SNR x tolerance map (slow: roughly 10-20 min)
