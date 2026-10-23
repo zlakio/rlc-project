@@ -10,7 +10,7 @@
 %           much of the lost performance comes back, on the SAME sensor sets as
 %           multipoint_sensing.m?
 %
-%   Detectors (all share one 60-component PCA basis fit on the swept data):
+%   Detectors (both share one 60-component PCA basis fit on the swept data):
 %     D1  Swept PCA T2            the project's detector (first 2 PCs). Reference.
 %     D2  Fisher matched filter   SUPERVISED. Fault signature g = slope of the
 %                                 data against capacity loss (regression on the
@@ -20,12 +20,12 @@
 %                                 trials already vary a lot are down-weighted.
 %                                 Threshold: 99th percentile of a separate
 %                                 healthy calibration set.
-%     D3  Nuisance-projected T2   UNSUPERVISED nuisance rejection. Remove the top
-%                                 kN directions of the healthy covariance (the
-%                                 tolerance subspace), then the project's 2-PC T2.
-%                                 Cost: the faulted capacitor's own tolerance
-%                                 lies along the fault direction, so some signal
-%                                 is removed too.
+%
+%   Note: an unsupervised variant that deleted the top 10 tolerance directions
+%   (no labels) was tried in an earlier version of this script and removed. It
+%   collapsed detection to the false alarm rate, because the faulted capacitor's
+%   own tolerance lies along the fault direction and the projection removes the
+%   signal with it. Knowing the fault direction (labels) is what makes D2 work.
 %
 %   Interpretability check (is the learned direction still physical?):
 %     physics signature = d(response)/d(capacity loss) of the nominal circuit,
@@ -53,10 +53,9 @@ N   = cfg.N;
 nS  = 2*N;
 nT  = numel(cfg.t);
 
-mComp        = 60;      % PCA components kept for D2 / D3 (score space)
-kN           = 10;      % nuisance directions removed by D3
+mComp        = 60;      % PCA components kept for D2 (score space)
 ridgeFrac    = 1e-3;    % ridge added to healthy covariance, as a fraction of its mean eigenvalue
-nPC          = 2;       % T2 capacity of D1 and D3 (same as the project)
+nPC          = 2;       % T2 capacity of D1 (same as the project)
 nTrainHealthy = 1000;
 nCal         = 1000;
 nTestHealthy = 1000;
@@ -79,7 +78,7 @@ sensors(4).name = 'All 5 caps';                sensors(4).idx = 2*(1:N);
 sensors(5).name = 'All caps + currents';       sensors(5).idx = 1:nS;
 nSens = numel(sensors);
 
-detNames = {'D1 Swept PCA T2', 'D2 Fisher matched filter', 'D3 Nuisance-projected T2'};
+detNames = {'D1 Swept PCA T2', 'D2 Fisher matched filter'};
 nD = numel(detNames);
 
 conds(1).name = 'Aleatory only';        conds(1).useTol = false;
@@ -111,7 +110,7 @@ for c = 1:2
     end
     Zh = gen_states(cfg, 1.00, nTrainHealthy, useTol, refRMS);
 
-    % ---- fit the shared basis and the three detectors, per sensor set ----
+    % ---- fit the shared basis and the two detectors, per sensor set ----
     models = cell(nSens, 1);
     for k = 1:nSens
         idx = sensors(k).idx;
@@ -128,19 +127,6 @@ for c = 1:2
         Sw  = Sw + ridgeFrac * mean(diag(Sw)) * eye(mComp);
         mdl.w   = Sw \ gS;
         mdl.muH = mean(Ph, 1);
-        % D3: project out top kN healthy directions, then 2-PC T2
-        [V, Dv] = eig((cov(Ph) + cov(Ph).') / 2);
-        [~, ord] = sort(diag(Dv), 'descend');
-        Nsp = V(:, ord(1:kN));
-        mdl.Nsp = Nsp;
-        Ps3 = Ps - (Ps * Nsp) * Nsp.';
-        Ph3 = Ph - (Ph * Nsp) * Nsp.';
-        mdl.mu3s = mean(Ps3, 1);
-        [E3, Dv3] = eig((cov(Ps3) + cov(Ps3).') / 2);
-        [~, o3] = sort(diag(Dv3), 'descend');
-        mdl.E3 = E3(:, o3(1:nPC));
-        H3 = (Ph3 - mdl.mu3s) * mdl.E3;
-        mdl.mu3 = mean(H3, 1);  mdl.Sig3 = cov(H3);
         mdl.thr2 = 1;                                                % filled below
         models{k} = mdl;
 
@@ -272,7 +258,7 @@ T_cos = table(rowsCond, rowsSens, cg, cw, cp, 'VariableNames', ...
 writetable(T_cos, fullfile(cfg.resultsDir, 'nuisance_physics_cosine.csv'));
 
 %% ---- Figure: rows = condition, columns = detector ----
-f1 = figure; set(f1, 'Position', [100 100 1300 650]);
+f1 = figure; set(f1, 'Position', [100 100 950 650]);
 tl = tiledlayout(2, nD, 'TileSpacing', 'compact');
 mk = {'-o', '-s', '-^', '-d', '-p'};
 for c = 1:2
@@ -295,7 +281,7 @@ save_fig(f1, 'fig_nuisance_detection_rate', cfg);
 %% ---- Save ----
 save(fullfile(cfg.resultsDir, 'nuisance_aware_features.mat'), ...
     'detRate', 'FAR', 'minIdx', 'aucAll', 'rocSev', 'fault_range', 'detNames', 'sensors', ...
-    'cosG', 'cosW', 'cosPC1', 'mComp', 'kN', 'nPC', 'T_sum', 'T_cos', 'cfg');
+    'cosG', 'cosW', 'cosPC1', 'mComp', 'nPC', 'T_sum', 'T_cos', 'cfg');
 fprintf('\nDone. Saved to %s\n', fullfile(cfg.resultsDir, 'nuisance_aware_features.mat'));
 
 %% ================= local functions =================
@@ -361,15 +347,12 @@ function P = project(Z, idx, B)
 end
 
 function sc = score_all(P, m, thrT)
-% Threshold-normalised scores for D1, D2, D3 (alarm when > 1).
+% Threshold-normalised scores for D1 and D2 (alarm when > 1).
     nPC = numel(m.mu1);
     d1 = P(:, 1:nPC) - m.mu1;
     s1 = sqrt(sum((d1 / m.Sig1) .* d1, 2)) / thrT;
     s2 = ((P - m.muH) * m.w) / m.thr2;
-    P3 = P - (P * m.Nsp) * m.Nsp.';
-    d3 = (P3 - m.mu3s) * m.E3 - m.mu3;
-    s3 = sqrt(sum((d3 / m.Sig3) .* d3, 2)) / thrT;
-    sc = [s1, s2, s3];
+    sc = [s1, s2];
 end
 
 function v = vec_stack(M)

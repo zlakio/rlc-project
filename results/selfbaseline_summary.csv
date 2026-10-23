@@ -1,0 +1,91 @@
+Condition,Sensors,Config,Detector,FAR_pct,MinDetectable_CapFraction,AUC_at_90pct_cap,Det_at_90pct_cap,Det_at_80pct_cap,Det_at_70pct_cap,Det_at_60pct_cap
+Aleatory only,"V5 (last cap, baseline)","A: m=1, K=1",SB-MF (self-baseline matched filter),0.8,0.84,0.973284,64.8,100,100,100
+Aleatory only,"V5 (last cap, baseline)","B: m=10, K=1",SB-MF (self-baseline matched filter),1,0.88,0.995228,94,100,100,100
+Aleatory only,"V5 (last cap, baseline)","C: m=10, K=5",SB-MF (self-baseline matched filter),1.4,0.94,1,100,100,100,100
+Aleatory only,"V3 (faulted stage)","A: m=1, K=1",SB-MF (self-baseline matched filter),1.4,0.84,0.968744,69.2,99.4,100,100
+Aleatory only,"V3 (faulted stage)","B: m=10, K=1",SB-MF (self-baseline matched filter),0.8,0.88,0.992196,89.4,100,100,100
+Aleatory only,"V3 (faulted stage)","C: m=10, K=5",SB-MF (self-baseline matched filter),0.4,0.94,1,100,100,100,100
+Aleatory only,"V1,V3,V5","A: m=1, K=1",SB-MF (self-baseline matched filter),0.8,0.88,0.997312,93.4,100,100,100
+Aleatory only,"V1,V3,V5","B: m=10, K=1",SB-MF (self-baseline matched filter),0.6,0.92,0.999904,99.8,100,100,100
+Aleatory only,"V1,V3,V5","C: m=10, K=5",SB-MF (self-baseline matched filter),0.6,0.96,1,100,100,100,100
+Aleatory only,"All 5 caps","A: m=1, K=1",SB-MF (self-baseline matched filter),1.8,0.92,0.9994,99.2,100,100,100
+Aleatory only,"All 5 caps","B: m=10, K=1",SB-MF (self-baseline matched filter),1.4,0.92,0.999996,100,100,100,100
+Aleatory only,"All 5 caps","C: m=10, K=5",SB-MF (self-baseline matched filter),0.6,0.96,1,100,100,100,100
+Aleatory only,"All caps + currents","A: m=1, K=1",SB-MF (self-baseline matched filter),1,0.94,1,100,100,100,100
+Aleatory only,"All caps + currents","B: m=10, K=1",SB-MF (self-baseline matched filter),2,0.96,1,100,100,100,100
+Aleatory only,"All caps + currents","C: m=10, K=5",SB-MF (self-baseline matched filter),1,0.96,1,100,100,100,100
+Aleatory only,"V5 (last cap, baseline)","A: m=1, K=1",SB-E (self-baseline energy),1.2,NaN,0.632092,2.4,13.8,54.8,92.2
+Aleatory only,"V5 (last cap, baseline)","B: m=10, K=1",SB-E (self-baseline energy),0.4,0.72,0.7327,11.8,56.8,97.2,100
+Aleatory only,"V5 (last cap, baseline)","C: m=10, K=5",SB-E (self-baseline energy),2,0.8,0.81824,17.4,97.6,100,100
+Aleatory only,"V3 (faulted stage)","A: m=1, K=1",SB-E (self-baseline energy),0,NaN,0.62054,1.6,14,41.6,81.8
+Aleatory only,"V3 (faulted stage)","B: m=10, K=1",SB-E (self-baseline energy),1,0.68,0.737048,9.2,51.8,94,100
+Aleatory only,"V3 (faulted stage)","C: m=10, K=5",SB-E (self-baseline energy),2.8,0.78,0.79876,19.4,94.8,100,100
+Aleatory only,"V1,V3,V5","A: m=1, K=1",SB-E (self-baseline energy),0.4,0.62,0.645888,3,19.6,68.2,97.8
+Aleatory only,"V1,V3,V5","B: m=10, K=1",SB-E (self-baseline energy),1,0.74,0.781744,13,76.6,99.2,100
+Aleatory only,"V1,V3,V5","C: m=10, K=5",SB-E (self-baseline energy),1.8,0.82,0.857388,19.6,99.6,100,100
+Aleatory only,"All 5 caps","A: m=1, K=1",SB-E (self-baseline energy),0.8,0.66,0.703144,3.6,35.6,89.2,99.8
+Aleatory only,"All 5 caps","B: m=10, K=1",SB-E (self-baseline energy),0.4,0.78,0.854428,13.2,91.4,100,100
+Aleatory only,"All 5 caps","C: m=10, K=5",SB-E (self-baseline energy),1.2,0.84,0.920159999999999,41.8,100,100,100
+Aleatory only,"All caps + currents","A: m=1, K=1",SB-E (self-baseline energy),1,0.7,0.668984,6.2,44.6,96.8,100
+Aleatory only,"All caps + currents","B: m=10, K=1",SB-E (self-baseline energy),1.2,0.8,0.807164,17.4,95.8,100,100
+Aleatory only,"All caps + currents","C: m=10, K=5",SB-E (self-baseline energy),2.2,0.86,0.952136,60.6,100,100,100
+Aleatory only,"V5 (last cap, baseline)","A: m=1, K=1",Fleet-MF (control: fleet reference),0.6,0.88,0.99792,94.6,100,100,100
+Aleatory only,"V5 (last cap, baseline)","B: m=10, K=1",Fleet-MF (control: fleet reference),0.6,0.88,0.99792,94.6,100,100,100
+Aleatory only,"V5 (last cap, baseline)","C: m=10, K=5",Fleet-MF (control: fleet reference),1.8,0.94,1,100,100,100,100
+Aleatory only,"V3 (faulted stage)","A: m=1, K=1",Fleet-MF (control: fleet reference),1,0.88,0.99386,91.6,100,100,100
+Aleatory only,"V3 (faulted stage)","B: m=10, K=1",Fleet-MF (control: fleet reference),1,0.88,0.99386,91.6,100,100,100
+Aleatory only,"V3 (faulted stage)","C: m=10, K=5",Fleet-MF (control: fleet reference),1.4,0.94,1,100,100,100,100
+Aleatory only,"V1,V3,V5","A: m=1, K=1",Fleet-MF (control: fleet reference),0.8,0.92,0.999956,100,100,100,100
+Aleatory only,"V1,V3,V5","B: m=10, K=1",Fleet-MF (control: fleet reference),0.8,0.92,0.999956,100,100,100,100
+Aleatory only,"V1,V3,V5","C: m=10, K=5",Fleet-MF (control: fleet reference),1.6,0.96,1,100,100,100,100
+Aleatory only,"All 5 caps","A: m=1, K=1",Fleet-MF (control: fleet reference),1.6,0.94,0.999996,100,100,100,100
+Aleatory only,"All 5 caps","B: m=10, K=1",Fleet-MF (control: fleet reference),1.6,0.94,0.999996,100,100,100,100
+Aleatory only,"All 5 caps","C: m=10, K=5",Fleet-MF (control: fleet reference),0.8,0.96,1,100,100,100,100
+Aleatory only,"All caps + currents","A: m=1, K=1",Fleet-MF (control: fleet reference),2.2,0.96,1,100,100,100,100
+Aleatory only,"All caps + currents","B: m=10, K=1",Fleet-MF (control: fleet reference),2.2,0.96,1,100,100,100,100
+Aleatory only,"All caps + currents","C: m=10, K=5",Fleet-MF (control: fleet reference),0.8,0.98,1,100,100,100,100
+Aleatory + Epistemic,"V5 (last cap, baseline)","A: m=1, K=1",SB-MF (self-baseline matched filter),1.2,0.84,0.971428,66.4,100,100,100
+Aleatory + Epistemic,"V5 (last cap, baseline)","B: m=10, K=1",SB-MF (self-baseline matched filter),1,0.88,0.994868,91,100,100,100
+Aleatory + Epistemic,"V5 (last cap, baseline)","C: m=10, K=5",SB-MF (self-baseline matched filter),0.8,0.94,1,100,100,100,100
+Aleatory + Epistemic,"V3 (faulted stage)","A: m=1, K=1",SB-MF (self-baseline matched filter),0.8,0.84,0.970048,67.4,100,100,100
+Aleatory + Epistemic,"V3 (faulted stage)","B: m=10, K=1",SB-MF (self-baseline matched filter),0.4,0.88,0.993628,86.2,100,100,100
+Aleatory + Epistemic,"V3 (faulted stage)","C: m=10, K=5",SB-MF (self-baseline matched filter),1,0.94,1,100,100,100,100
+Aleatory + Epistemic,"V1,V3,V5","A: m=1, K=1",SB-MF (self-baseline matched filter),2.2,0.9,0.996792,96.8,100,100,100
+Aleatory + Epistemic,"V1,V3,V5","B: m=10, K=1",SB-MF (self-baseline matched filter),1,0.92,0.99992,99.6,100,100,100
+Aleatory + Epistemic,"V1,V3,V5","C: m=10, K=5",SB-MF (self-baseline matched filter),1,0.94,1,100,100,100,100
+Aleatory + Epistemic,"All 5 caps","A: m=1, K=1",SB-MF (self-baseline matched filter),1,0.9,0.999856,99.8,100,100,100
+Aleatory + Epistemic,"All 5 caps","B: m=10, K=1",SB-MF (self-baseline matched filter),2,0.94,1,100,100,100,100
+Aleatory + Epistemic,"All 5 caps","C: m=10, K=5",SB-MF (self-baseline matched filter),0.4,0.96,1,100,100,100,100
+Aleatory + Epistemic,"All caps + currents","A: m=1, K=1",SB-MF (self-baseline matched filter),1,0.94,1,100,100,100,100
+Aleatory + Epistemic,"All caps + currents","B: m=10, K=1",SB-MF (self-baseline matched filter),1.4,0.96,1,100,100,100,100
+Aleatory + Epistemic,"All caps + currents","C: m=10, K=5",SB-MF (self-baseline matched filter),1,0.96,1,100,100,100,100
+Aleatory + Epistemic,"V5 (last cap, baseline)","A: m=1, K=1",SB-E (self-baseline energy),2,NaN,0.596292,4.8,10.2,23.2,58.4
+Aleatory + Epistemic,"V5 (last cap, baseline)","B: m=10, K=1",SB-E (self-baseline energy),2,0.6,0.666564,7.2,25.6,73,98.2
+Aleatory + Epistemic,"V5 (last cap, baseline)","C: m=10, K=5",SB-E (self-baseline energy),2.6,0.76,0.720483999999999,11,70.4,100,100
+Aleatory + Epistemic,"V3 (faulted stage)","A: m=1, K=1",SB-E (self-baseline energy),1.8,NaN,0.620844,3,7.6,21.6,51
+Aleatory + Epistemic,"V3 (faulted stage)","B: m=10, K=1",SB-E (self-baseline energy),0.6,0.62,0.6976,6,25.8,72.2,97.4
+Aleatory + Epistemic,"V3 (faulted stage)","C: m=10, K=5",SB-E (self-baseline energy),0.4,0.74,0.725376,9.2,69.8,99.8,100
+Aleatory + Epistemic,"V1,V3,V5","A: m=1, K=1",SB-E (self-baseline energy),1.6,NaN,0.607004,4.8,11.8,29.8,65
+Aleatory + Epistemic,"V1,V3,V5","B: m=10, K=1",SB-E (self-baseline energy),1.6,0.64,0.686836,6.6,31.6,80.6,99.2
+Aleatory + Epistemic,"V1,V3,V5","C: m=10, K=5",SB-E (self-baseline energy),1,0.74,0.733504,9,72,100,100
+Aleatory + Epistemic,"All 5 caps","A: m=1, K=1",SB-E (self-baseline energy),1.6,NaN,0.614048,4.4,12.2,31.6,71.8
+Aleatory + Epistemic,"All 5 caps","B: m=10, K=1",SB-E (self-baseline energy),1.4,0.66,0.70506,7.2,34.8,84.6,99.4
+Aleatory + Epistemic,"All 5 caps","C: m=10, K=5",SB-E (self-baseline energy),1.8,0.76,0.749992,10.6,76.8,100,100
+Aleatory + Epistemic,"All caps + currents","A: m=1, K=1",SB-E (self-baseline energy),1,NaN,0.588552,2.8,11.6,39.4,82.2
+Aleatory + Epistemic,"All caps + currents","B: m=10, K=1",SB-E (self-baseline energy),0.8,0.66,0.663552,5.2,33.8,89.6,100
+Aleatory + Epistemic,"All caps + currents","C: m=10, K=5",SB-E (self-baseline energy),0.4,0.78,0.800612,7.4,92.4,100,100
+Aleatory + Epistemic,"V5 (last cap, baseline)","A: m=1, K=1",Fleet-MF (control: fleet reference),0.6,NaN,0.68364,5.6,18.2,42.2,69.4
+Aleatory + Epistemic,"V5 (last cap, baseline)","B: m=10, K=1",Fleet-MF (control: fleet reference),0.6,NaN,0.68364,5.6,18.2,42.2,69.4
+Aleatory + Epistemic,"V5 (last cap, baseline)","C: m=10, K=5",Fleet-MF (control: fleet reference),0.8,NaN,0.688096,5.8,16.8,41.2,69
+Aleatory + Epistemic,"V3 (faulted stage)","A: m=1, K=1",Fleet-MF (control: fleet reference),0.6,NaN,0.735416,6.4,27.8,60.8,89.8
+Aleatory + Epistemic,"V3 (faulted stage)","B: m=10, K=1",Fleet-MF (control: fleet reference),0.6,NaN,0.735416,6.4,27.8,60.8,89.8
+Aleatory + Epistemic,"V3 (faulted stage)","C: m=10, K=5",Fleet-MF (control: fleet reference),0.4,NaN,0.73444,5.8,29.8,62.2,89.6
+Aleatory + Epistemic,"V1,V3,V5","A: m=1, K=1",Fleet-MF (control: fleet reference),1,NaN,0.7139,6.8,24.4,57,85
+Aleatory + Epistemic,"V1,V3,V5","B: m=10, K=1",Fleet-MF (control: fleet reference),1,NaN,0.7139,6.8,24.4,57,85
+Aleatory + Epistemic,"V1,V3,V5","C: m=10, K=5",Fleet-MF (control: fleet reference),1.4,NaN,0.714144,8.8,28.4,60.6,88.6
+Aleatory + Epistemic,"All 5 caps","A: m=1, K=1",Fleet-MF (control: fleet reference),0.8,NaN,0.714132,7.2,27.6,58,85.8
+Aleatory + Epistemic,"All 5 caps","B: m=10, K=1",Fleet-MF (control: fleet reference),0.8,NaN,0.714132,7.2,27.6,58,85.8
+Aleatory + Epistemic,"All 5 caps","C: m=10, K=5",Fleet-MF (control: fleet reference),1.2,NaN,0.713376,8.4,29,59,87.4
+Aleatory + Epistemic,"All caps + currents","A: m=1, K=1",Fleet-MF (control: fleet reference),0.6,0.66,0.783952,13.2,47.6,88.2,99.6
+Aleatory + Epistemic,"All caps + currents","B: m=10, K=1",Fleet-MF (control: fleet reference),0.6,0.66,0.783952,13.2,47.6,88.2,99.6
+Aleatory + Epistemic,"All caps + currents","C: m=10, K=5",Fleet-MF (control: fleet reference),0.6,0.66,0.785304,11.4,45.8,87.6,99.4
