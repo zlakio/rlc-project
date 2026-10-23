@@ -78,6 +78,8 @@ This section records the thinking, including the things that were wrong at first
 
 **Tolerance, not noise, is the bottleneck.** Eigenvalue sensitivities show that a 10% capacitance loss moves the dominant mode by about the same amount as the spread caused by component tolerance alone (42 vs 44 rad/s). The SNR x tolerance map confirms it: once tolerance is present, a higher SNR stops helping beyond roughly 15-20 dB.
 
+**Detectors can lower the tolerance floor, but not remove it.** Three different upgrades (all ten signals, a supervised matched filter that knows the tolerance spread, an extended Kalman filter that estimates the faulted capacitance) all bring the smallest detectable loss under tolerance down from about 33% to about 22-23%, and none gets a 10% fault above about 41% detection (Section 5). Under noise alone they all land within a percentage point or two of each other. Removing the tolerance directions without using labels makes things worse, because the faulted capacitor's own tolerance lies along the fault direction.
+
 **Reproducibility.** Every shared parameter lives in `get_params.m`, every script seeds the RNG (`rng(42)`), and results and 300-dpi figures are saved to `results/`. `test_build_rlc_ladder.m` checks the model against closed-form eigenvalues for N = 1.
 
 ## 5. Results so far
@@ -237,6 +239,91 @@ Reading:
 - 10 PCs is worse than 2 PCs for the capacitor-only sets under tolerance, for the same reason.
 - All false alarm rates are at most 1.8%. Resolution: one seed, 100 trials per severity.
 
+### Nuisance-aware features (`nuisance_aware_features.m`)
+
+`multipoint_sensing.m` showed a symptom: with 2 PCs the retained directions are dominated by tolerance spread. This script tells the detector about that spread, on the same five sensor sets and protocol (one 60-component PCA basis fit on the swept data; separate healthy calibration set; fresh test trials).
+
+- **D1** swept PCA T2, the project's detector (reference).
+- **D2** Fisher matched filter (supervised): the fault signature is the slope of the data against capacity loss on the training sweep, whitened by the covariance of healthy trials (noise + tolerance); threshold from a separate healthy calibration set.
+- **D3** nuisance-projected T2 (unsupervised): remove the top 10 directions of the healthy covariance, then the 2-PC T2.
+
+Minimum detectable capacitance loss (>=95% detection, FAR <= 5%):
+
+| Sensors | Noise only D1 / D2 / D3 | Noise + tolerance D1 / D2 / D3 |
+|---|---|---|
+| S1 V5 | 11.5% / 11.5% / 11.5% | n.r. / n.r. / n.r. |
+| S2 V3 | 12.9% / 12.2% / 12.9% | n.r. / n.r. / n.r. |
+| S3 V1,V3,V5 | 8.1% / 8.1% / 9.5% | n.r. / n.r. / n.r. |
+| S4 all caps | 6.8% / 6.1% / 7.5% | n.r. / n.r. / n.r. |
+| S5 caps + currents | 4.7% / 4.1% / 4.7% | 33.2% / **23.1%** / n.r. |
+
+Under noise + tolerance, detection rate (%) at 90% / 80% / 70% / 60% capacitance, and AUC at 90%:
+
+| Sensors | D1 | D2 | D3 |
+|---|---|---|---|
+| S1 V5 | 7 / 10 / 27 / 48 (AUC 0.565) | 6 / 12 / 35 / 61 (0.690) | 3 / 1 / 1 / 2 (0.512) |
+| S2 V3 | 6 / 14 / 41 / 70 (0.545) | 10 / 24 / 56 / 86 (0.727) | 1 / 1 / 3 / 3 (0.496) |
+| S3 V1,V3,V5 | 3 / 10 / 37 / 63 (0.559) | 9 / 19 / 55 / 82 (0.731) | 1 / 0 / 2 / 5 (0.517) |
+| S4 all caps | 4 / 10 / 35 / 58 (0.571) | 8 / 14 / 45 / 82 (0.705) | 1 / 1 / 2 / 4 (0.445) |
+| S5 caps + currents | 11 / 37 / 90 / 99 (0.657) | 29 / 83 / 99 / 100 (0.863) | 1 / 1 / 2 / 4 (0.511) |
+
+Reading:
+- **Noise only:** the three detectors are within about 1.5 points of each other; the detector is not the limit there.
+- **With tolerance, the supervised filter (D2) helps:** AUC rises for every sensor set (for example 0.545 to 0.727 for V3), and on all ten signals the minimum detectable loss falls from 33% to 23% and detection of a 10% fault from 11% to 29%. Capacitor-only sets still do not reach 95%.
+- **Unsupervised nuisance removal (D3) backfires:** detection collapses to roughly the false alarm rate. The faulted capacitor's own tolerance lies along the fault direction, so projecting out the tolerance subspace removes the signal as well. Knowing which direction is the fault (labels) is what makes the difference.
+- **Interpretability is kept:** the cosine similarity between the regression fault signature and the model-based physical signature (derivative of the nominal response with respect to capacitance) is 0.94-0.96 for every sensor set, in both conditions. PC1 of the swept PCA also matches it (0.93-0.98 under tolerance), so the PCA direction is physically right even where its T2 distance fails to separate fault from tolerance. The matched filter itself is deliberately different from the signature under tolerance (cosine 0.13-0.38, against 0.91-0.94 with noise only), because it is shaped to avoid the tolerance directions: the supervised detector gains power but is less directly readable as "the mode moving".
+- Caveats: the training sweep includes tolerance draws from the same bands as the test, so D2 knows the tolerance distribution; `n.r.` = not reached; one seed, 100 trials per severity.
+
+### Kalman-filter capacitance estimation (`kalman_capacitance.m`)
+
+An extended Kalman filter tracks the ten circuit states plus one hidden state, theta = C(stage 3) / C(nominal), using the nominal model in which only theta may differ (the identity `A(theta) = A0 + (1/theta - 1)E` from `eigen_sensitivity.m`). Euler discretisation at 10 us; each measured channel is a scalar update with its own noise. Two versions: `qrel = 0` trusts the nominal model, `qrel = 1e-3` adds process noise of 0.1% of each state's RMS per step so the filter can absorb mismatch from unknown R, L, C. Decision rule: alarm if the final theta estimate falls below the 1st percentile of a separate healthy calibration set. 500 healthy and 100 trials per severity on a 2% grid.
+
+Estimate quality at 90% true capacitance (mean estimate, standard deviation over trials, and the uncertainty the filter claims for itself), `qrel = 0`:
+
+| Sensors | Noise only | Noise + tolerance |
+|---|---|---|
+| S1 V5 | 0.909, std 0.026, claims 0.025 | 0.887, std 0.138, claims 0.025 |
+| S3 V1,V3,V5 | 0.908, std 0.018, claims 0.018 | 0.889, std 0.120, claims 0.018 |
+| S5 caps + currents | 0.904, std 0.010, claims 0.009 | 0.891, std 0.086, claims 0.009 |
+
+Minimum detectable capacitance loss, `qrel = 0` / `qrel = 1e-3`:
+
+| Sensors | Noise only | Noise + tolerance |
+|---|---|---|
+| S1 V5 | 12% / 12% | n.r. / n.r. |
+| S2 V3 | 12% / 14% | n.r. / n.r. |
+| S3 V1,V3,V5 | 8% / 12% | n.r. / n.r. |
+| S4 all caps | 6% / 12% | n.r. / 40% |
+| S5 caps + currents | 4% / 6% | 34% / **22%** |
+
+Under noise + tolerance, `qrel = 1e-3`: detection rate (%) at 90% / 80% / 70% / 60% capacitance, and AUC at 90%:
+
+| Sensors | Detection | AUC |
+|---|---|---|
+| S1 V5 | 7 / 15 / 42 / 71 | 0.702 |
+| S2 V3 | 9 / 32 / 69 / 92 | 0.727 |
+| S3 V1,V3,V5 | 7 / 34 / 70 / 91 | 0.732 |
+| S4 all caps | 9 / 38 / 75 / 96 | 0.746 |
+| S5 caps + currents | 41 / 93 / 100 / 100 | **0.880** |
+
+Reading:
+- **Noise only: an efficient estimator.** `qrel = 0` is unbiased to within about 1 point and its standard deviation matches the uncertainty the filter claims (0.026 vs 0.025 on one signal, 0.010 vs 0.009 on ten). Capacitance is tracked to about 2.5% from the last node and about 1% from all ten signals. Detection is essentially the same as PCA's (minimum detectable loss 12% on one signal, 4% on ten), which suggests the PCA detector was already near the noise-limited optimum there; this is an inference from the estimator being efficient, not a proven bound.
+- **Process noise costs accuracy when the model is exact:** with `qrel = 1e-3` and noise only, the estimate lags the truth (0.697 at a true 0.6 on one signal) and detection worsens.
+- **With tolerance, the filter is overconfident:** the real scatter is 5 to 10 times the filter's own claim at `qrel = 0` (0.138 vs 0.025 on one signal, 0.086 vs 0.009 on ten) and still about 2 times at `qrel = 1e-3` on ten signals (0.056 vs 0.026). The filter's covariance describes noise only; epistemic uncertainty is invisible to it, which is exactly the problem named in the review paper.
+- **Allowing for mismatch helps where it matters:** at `qrel = 1e-3` on all ten signals the minimum detectable loss is 22% (34% at `qrel = 0`), detection of a 10% fault is 41% and the AUC of 0.880 is the highest of any detector in this project. All-five-capacitor voltages reach 95% only at the 40% loss limit; the other capacitor-only sets do not.
+- Caveats: `qrel = 1e-3` was picked after a small preliminary run on tolerance data, not cross-validated, and so encodes knowledge of the mismatch size; the filter assumes only the stage-3 capacitor differs from nominal; Euler discretisation; theta clipped to [0.3, 1.6]; one seed.
+
+### What each fix buys under tolerance
+
+| Detector | S1 V5 | S4 all caps | S5 caps + currents |
+|---|---|---|---|
+| Swept PCA T2 (project's, `multipoint_sensing.m`) | n.r. | n.r. | 31.9-33.2% loss |
+| Fisher matched filter (supervised) | n.r. | n.r. | 23.1% |
+| Kalman filter, `qrel = 0` | n.r. | n.r. | 34% |
+| Kalman filter, `qrel = 1e-3` | n.r. | 40% | **22%** |
+
+Detection of a 10% capacitance loss on the ten-signal set: 11% (PCA), 29% (Fisher), 41% (Kalman, `qrel = 1e-3`). Differences of a percentage point or two in these tables are within the 2% severity grid and trial-to-trial noise (the same PCA detector read 31.9% and 33.2% in two runs). The robust conclusions are: (1) every approach needs the inductor currents to reach 95% under tolerance; (2) using what is known about the tolerance (labels and whitening for the Fisher filter, a process-noise allowance for the Kalman filter) moves the floor from about 33% to about 22-23% loss; (3) removing the tolerance directions blindly makes things worse; (4) a 10% fault is still not reliably detectable under the assumed tolerances with any of these.
+
 ## 6. Repository structure
 
 ```
@@ -254,6 +341,8 @@ Reading:
 ├── eigen_sensitivity.m             % analytical eigenvalue sensitivity vs simulated migration; tolerance spread
 ├── snr_tolerance_heatmap.m         % minimum detectable fault over an SNR x tolerance grid
 ├── multipoint_sensing.m            % detection with 1 to 10 measured signals (caps, inductor currents)
+├── nuisance_aware_features.m       % supervised matched filter and nuisance projection vs swept PCA
+├── kalman_capacitance.m            % extended Kalman filter estimating the faulted capacitance (slow, needs R2020b+)
 ├── test_build_rlc_ladder.m         % model verification against closed form
 ├── run_all.m                       % runs everything in order
 └── results/                        % created automatically (.mat, .csv, figures/)
@@ -265,7 +354,7 @@ Reading:
 
 ```matlab
 cd path/to/this/folder
-run_all          % tests, then every script, in order (snr_tolerance_heatmap is the slow step)
+run_all          % tests, then every script, in order (snr_tolerance_heatmap and kalman_capacitance are the slow steps)
 ```
 
 Scripts read parameters from `get_params.m`; change values there, not inside scripts. Runs are deterministic (seed 42).
@@ -273,9 +362,10 @@ Scripts read parameters from `get_params.m`; change values there, not inside scr
 ## 8. Limitations and scope
 
 - **Simulation only.** The RLC ladder has not been built; planned hardware validation uses an RC ladder (no inductors).
-- With the single output, detection under tolerance never reaches 95% within the tested range. Measuring all ten states (`multipoint_sensing.m`) reaches it only at about 30-32% loss; smaller faults remain undetectable under tolerance.
+- With the single output, detection under tolerance never reaches 95% within the tested range for any detector tried (PCA, supervised matched filter, Kalman filter). Measuring all ten states reaches it at about 33% loss with PCA and about 22-23% with the supervised filter or the Kalman filter; a 10% fault stays below about 41% detection.
 - The PCA basis is fit on swept data that includes faulty trials; metrics describe the method as defined. A healthy-only PCA basis was tested (`baseline_comparison.m`) and is blind with 2 components; a healthy-only basis with more components was not tried.
 - A simple raw-energy threshold detects as well as the PCA T2 detector when only noise is present (see Section 5), so the PCA trajectory is justified by its physical interpretation, not by detection power.
+- The supervised matched filter is trained on sweeps that include tolerance draws from the same bands as the test, and the Kalman filter's process-noise setting was chosen from a small preliminary run on tolerance data; both therefore encode knowledge of the tolerance that a real deployment would have to obtain. The Kalman filter's own uncertainty ignores tolerance (it is overconfident by 2-10 times). Unsupervised removal of the tolerance subspace destroys detection.
 - A single fault type (capacitance loss in one stage); the main results use a single measured output, and the multi-point study assumes up to ten independently noisy sensors.
 - Noise level (15 dB) and tolerance bands are assumed values. The SNR x tolerance map sweeps both, but tolerance is modelled as independent uniform draws within each band; other distributions were not tried.
 - The analytical eigenvalue check is done, but the Monte Carlo tolerance spread uses greedy nearest-neighbour mode matching, which is order-dependent for the -590 +/- 622i pair (Monte Carlo 40.0 rad/s vs linearised 26.2 rad/s). The linearised value is the reliable one there; those modes barely respond to the fault, so no conclusion depends on it.
@@ -291,7 +381,27 @@ Scripts read parameters from `get_params.m`; change values there, not inside scr
 - [x] SNR × tolerance heatmap
 - [x] Multi-point sensing (several capacitor voltages, inductor currents)
 - [ ] Self-baseline (per-unit reference) detection with sequential CUSUM/EWMA
-- [ ] Kalman-filter joint state and capacitance estimation
-- [ ] Nuisance-aware / supervised features
+- [x] Kalman-filter joint state and capacitance estimation
+- [x] Nuisance-aware / supervised features
 - [ ] RC-ladder hardware validation (Arduino)
 
+## 10. Relation to the literature
+
+This project was built from the review by Wang and Geng (2025), "Modeling of complex electromechanical systems based on state-space, graph network and intelligent algorithms: a review" (*Journal of Reliability Science and Engineering* 1, 032002, doi:10.1088/3050-2454/ade71d). A review has no method to reproduce; it lists open problems in the reliability modelling of complex systems. This project works on some of them, on one fault mode in a small ladder, and leaves others untouched. One wording trap: the review's "state-space methods" mostly means discrete multi-state models (Markov, universal generating function); here "state-space" means the continuous-time electrical state equations of the circuit.
+
+| Gap named in the review | Where it is addressed here | Status |
+|---|---|---|
+| Distinguishing aleatory from epistemic uncertainty (Sec. 2.2: "a persistent issue") | Noise vs component tolerance, separated everywhere; SNR x tolerance map; tolerance spread vs fault shift per mode (`eigen_sensitivity.m`) | Addressed for this circuit |
+| Physical interpretability of data-driven methods (Sec. 2.2) | PC1 anchored to the dominant eigenvalue (r = 0.99); analytic eigenvalue sensitivity; cosine check of learned directions against the model-based fault signature | Addressed |
+| Dimensionality reduction onto low-dimensional latent spaces that keep failure signatures (Sec. 4) | PCA latent signature trajectory | Addressed |
+| Physics-data fusion and physics-informed digital twins with "correction and updating" (Sec. 2.2, 4, Fig. 5) | Extended Kalman filter that corrects a nominal model against the measurement and estimates the faulted capacitance with its own uncertainty (`kalman_capacitance.m`) | Partly: one parameter, nominal model |
+| Field uncertainties such as sensor noise (Sec. 4) | Noise and tolerance both modelled; SNR swept 5-30 dB | Partly: assumed noise and tolerance models |
+| Data heterogeneity across sensors (Sec. 2.2) | Multi-point sensing (`multipoint_sensing.m`): capacitor voltages and inductor currents | Partly: identical sampling, independent noise, up to ten channels |
+| Multi-failure coupling, cascading and common-cause failure | Not addressed: one capacitor degrades at a time | Open |
+| Scalability, state-space explosion (Sec. 2.2) | Not addressed: N = 5 stages; the continuous model grows linearly (2N states), unlike the 2^n of multi-state methods, but only N = 5 was studied | Open |
+| Reliability metrics such as failure probability and mean time to failure | Not addressed: results are detection rates and minimum detectable fault | Open |
+| Validation on physical or semi-physical platforms (Sec. 4) | Planned RC-ladder hardware check | Open |
+
+The closest technical works cited in the review are Chen, Wang and Kang (2024), "Epistemic uncertainty propagation and reliability evaluation of feedback control system" (*IEEE Trans. Reliab.* 73, 521-535), and Xu, Bansal, Wang and Li (2025), "Physics-informed machine learning for system reliability analysis and design with partially observed information" (*Reliab. Eng. Syst. Saf.* 254, 110598). The Kalman and supervised-filter results (Section 5) follow the review's suggestion to combine a physics model with data-driven correction; the main finding, that component uncertainty rather than measurement noise sets the floor on detection, is a concrete instance of the epistemic-uncertainty problem it describes.
+
+Reference: S. Wang and Y. Geng, "Modeling of complex electromechanical systems based on state-space, graph network and intelligent algorithms: a review," J. Reliab. Sci. Eng. 1, 032002 (2025).
